@@ -1,0 +1,36 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment when code is pushed to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Step 2: Set up SSH key for authentication (make sure you have added the private key in GitHub secrets)
+    - name: Set up SSH key
+      run: |
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        mkdir -p ~/.ssh
+        ssh-keyscan -t rsa your-production-server.com >> ~/.ssh/known_hosts
+
+    # Step 3: SSH into the production server, pull the latest code, rebuild the Docker image, and restart the container
+    - name: Deploy to Production via Docker
+      run: |
+        ssh -o StrictHostKeyChecking=no user@your-production-server.com << 'EOF'
+          cd /path/to/your/app || exit 1
+          git pull origin main || exit 1
+          # Build and restart the Docker container
+          docker-compose down || exit 1
+          docker-compose up --build -d || exit 1
+        EOF
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
